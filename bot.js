@@ -77,6 +77,7 @@ function getSteamId(input, message){
 	if(input[1] == "profiles"){
 		steamId = input[2].replace("/","");
 		console.log("steamID: "+steamId);
+		output = steamId;
 	}
 	else if(input[1] == "id"){
 		customId = input[2].replace("/","");
@@ -91,41 +92,42 @@ function getSteamId(input, message){
 						output = body[line].replace(" ","").replace(/\s+/g,"").replace("<br>","").replace("<code>","");
 						output = output.replace("<br>","").replace("\t","").replace("steamID64(Dec)","").replace("</code>","").replace(":","");
 						output = output.replace("\"","").replace("\\","").replace("\/","").replace("}","").replace("(","").replace(")","");
-						console.log(output);
-						const { exec } = require('child_process');
-						exec('/home/pi/steamtracker/addnewid.sh '+output, (err, stdout, stderr) => {
-							if (err) {
-								//some err occurred
-								console.error(err)
-							} else {
-								// the *entire* stdout and stderr (buffered)
-								console.log(`stdout: ${stdout}`);
-								if(stdout.includes("User exists")){
-									message.channel.send("SteamID "+output+" already exists in the database.");
-								}
-								else{
-									message.channel.send("Scanning profile "+output+", please wait a few minutes");
-									exec('/home/pi/steamtracker/full-workflow.sh '+auth.dbuser+" "+auth.dbpass+" "+output, (err, stdout, stderr) => {
-										if (err) { console.error(err); }
-										else {
-											message.channel.send("Scanning profile "+output+" complete.");
-										}
-									});
-								}
-							}
-						});
-
-					}
-					else{
-//						console.log("NOOOOOOO"+line);
+						console.log("Found SteamID: "+output);
 					}
 				}
 			}
-		})
+		});
 	}
 	else{
-		console.log("error: "+input);
+		console.log("Error, wrong url");
+		return 0;
 	}
+
+	/// I have SteamID64 - variable "output"
+	const { exec } = require('child_process');
+	exec('/home/pi/steamtracker/addnewid.sh '+output, (err, stdout, stderr) => {
+		if (err) {
+			//some err occurred
+			console.error(err)
+		} else {
+			// the *entire* stdout and stderr (buffered)
+			console.log(`stdout: ${stdout}`);
+			if(stdout.includes("User exists")){
+				message.channel.send("SteamID "+output+" already exists in the database.");
+			}
+			else{
+				message.channel.send("Scanning profile "+output+", please wait a few minutes");
+				exec('/home/pi/steamtracker/full-workflow.sh '+auth.dbuser+" "+auth.dbpass+" "+output, (err, stdout, stderr) => {
+					if (err) { console.error(err); }
+					else {
+						message.channel.send("Scanning profile "+output+" complete.");
+					}
+				});
+			}
+		}
+	});
+
+
 }
 
 function sendPotato(message){
