@@ -40,9 +40,9 @@ client.on("message", (message) => {
 				break;
 			case "addsteam":
 				if(args.length > 1){
-					getSteamId(args[1], message);
+					addSteamIdToScanner(args[1], message);
+					addSteamIdToProfileList(args[1], message);
 				}
-
         }
     }
 	if(message.author.username == "Vyqe" || message.author.username == "Pasza" ){
@@ -78,6 +78,7 @@ function getSteamId(input, message){
 		steamId = input[2].replace("/","");
 		console.log("steamID: "+steamId);
 		output = steamId;
+		return output;
 	}
 	else if(input[1] == "id"){
 		customId = input[2].replace("/","");
@@ -93,6 +94,7 @@ function getSteamId(input, message){
 						output = output.replace("<br>","").replace("\t","").replace("steamID64(Dec)","").replace("</code>","").replace(":","");
 						output = output.replace("\"","").replace("\\","").replace("\/","").replace("}","").replace("(","").replace(")","");
 						console.log("Found SteamID: "+output);
+						return output;
 					}
 				}
 			}
@@ -102,10 +104,19 @@ function getSteamId(input, message){
 		console.log("Error, wrong url");
 		return 0;
 	}
+}
 
-	/// I have SteamID64 - variable "output"
+function addSteamIdToScanner(steamid, message){
+	//Error if wrong id
+	if(steamid == 0 || !steamid){
+		console.log("AddSteamIdToScanner - Wrong Steam ID: "+steamid);
+		return 0;
+	}
+	
+	// I have SteamID64 - variable "output"
 	const { exec } = require('child_process');
-	exec('/home/pi/steamtracker/addnewid.sh '+output, (err, stdout, stderr) => {
+	console.log("AddSteamIdToScanner - SteamID OK, adding: "+steamid);
+	exec('/home/pi/steamtracker/addnewid.sh '+steamid, (err, stdout, stderr) => {
 		if (err) {
 			//some err occurred
 			console.error(err)
@@ -113,21 +124,37 @@ function getSteamId(input, message){
 			// the *entire* stdout and stderr (buffered)
 			console.log(`stdout: ${stdout}`);
 			if(stdout.includes("User exists")){
-				message.channel.send("SteamID "+output+" already exists in the database.");
+				message.channel.send("SteamID "+steamid+" already exists in the database.");
 			}
 			else{
-				message.channel.send("Scanning profile "+output+", please wait a few minutes");
+				message.channel.send("Scanning profile "+steamid+", please wait a few minutes");
 				exec('/home/pi/steamtracker/full-workflow.sh '+auth.dbuser+" "+auth.dbpass+" "+output, (err, stdout, stderr) => {
 					if (err) { console.error(err); }
 					else {
-						message.channel.send("Scanning profile "+output+" complete.");
+						message.channel.send("Scanning profile "+steamid+" complete.");
 					}
 				});
 			}
 		}
 	});
+}
 
-
+function addSteamIdToProfileList(steamid, message){
+	var fs = require('fs');
+	var text = fs.readFileSync('/home/pi/steamsumup/profileList', 'utf-8').toString('utf-8');
+	var text = text.split("\n")
+	for(line in text){
+		if(text[line] == steamid){
+			console.log("Found Steam ID "+steamid+" in profileList.");
+			return 0;
+		}
+	}
+	console.log("No Steam ID "+steamid+" in profileList. Adding.");
+	fs.writeFile('/home/pi/steamsumup/profileList',steamid+"\n", function (err) {
+		if (err) return console.log(err);
+		console.log('Added '+steamid+' to profileList.');
+		});
+	
 }
 
 function sendPotato(message){
