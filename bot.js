@@ -110,7 +110,7 @@ function showTotalTimes(message){
 			message.channel.send("Error showing top list.");
 		} else {
 			console.log("Launched showTop.py");
-			message.channel.send(buildTable(`${stdout}`, 4, 25));
+			message.channel.send(buildTable(`${stdout}`, 4, 26));
 			message.channel.send(pasteEmoji()+" This list sums up gametimes for all willing participants "+pasteEmoji()+"\n"+pasteEmoji()+" To add yourself to the Slav list just type \!addsteam YOUR_STEAM_PROFILE_URL, ex. !addsteam <https://steamcommunity.com/id/vyqe> "+pasteEmoji()+"\n"+pasteEmoji()+" Current Slav list can be viewed by typing !showslavs "+pasteEmoji());
 		}
 	});
@@ -303,13 +303,14 @@ function buildTable(inputArray, maxWidth, maxRows) {
     for (var y = 0; y < inputArray.length; y++) {
         columnSplit = inputArray[y].split(";");
         for (var z = 0; z < columnSplit.length; z++) {
-            console.log("y=" + y + " z=" + z + " columnSplit[z].length=" + columnSplit[z].length + " colLength[z]=" + colLength[z]);
+	    //console.log(inputArray[y]);
+            console.log("[ Y " + y + " ][ Z " + z + " ] CS[Z].length [ " + columnSplit[z].length + " ] colLength[z] " + colLength[z] + " ||| "+inputArray[y]);
             if (columnSplit[z].length > colLength[z]) {
                 colLength[z] = columnSplit[z].length;
             }
         }
     }
-	console.log("---");
+	console.log("-------------------------------------");
     //Get Max line length by summing MAX columns
     for (var x = 0; x < colLength.length; x++) {
         maxLength += colLength[x];
@@ -339,6 +340,7 @@ function buildTable(inputArray, maxWidth, maxRows) {
     }
     //      for(var i=800;i<1500;++i) finalString += String.fromCharCode(i);
     finalString += "\n```"
+    console.log(finalString);
     return finalString;
 }
 
