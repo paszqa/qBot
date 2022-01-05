@@ -29,7 +29,7 @@ content = f.readlines()
 for line in content:
     reaction = line.split(";")[0]
     userId = line.split(";")[1]
-    gameName = line.split(";")[2][:-1]
+    gameName = line.split(";")[2][:-1].replace("'","\\'")
     print("reaction: "+reaction)
     print("userId: "+userId)
     print("gameName: "+gameName)

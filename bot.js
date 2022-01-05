@@ -1,25 +1,36 @@
 ////////////////////////// 
 // qBot by Paszq
-// 2021
-// v0.1	- 2021-10-19 - Paszq - first versioned commit
-// v0.2 - 2021-12-18 - Paszq - cleaned up code
-
+// 2021-2022
+// v0.1.0	- 2021-10-19 - Paszq - first versioned commit
+// v0.2.0 - 2021-12-18 - Paszq - cleaned up code
+// v0.3.0 - 2021-12-29 - Paszq - initial vote code
+// v0.4.0 - 2022-01-02 - Paszq - voting works
+// v0.4.1 - 2022-01-05 - Paszq - comments, partial code clean up
+//////////////////////////
 
 ////////////////////////// 
+// Requires
+//////////////////////////
 const Discord = require("discord.js");
 var logger = require('winston');
 const client = new Discord.Client();
 var auth = require('./auth.json');
 var cron = require("node-cron");
 
+
+//////////////////////////
+// Running the bot, initialization on launch
+//////////////////////////
 client.on("ready", () => {
     console.log("I am ready!");
     console.log(client.user.tag + ' ///// ' + client.user.id);
     enableCronJobs();  // Enables scheduled jobs on start
-	loadVotePosts();
-//client.channels.cache.get("890362452833873924").message.cache.get(MSG_ID);
+	loadVotePosts();   // On launch checks and prepares posts that were saved to voteposts.csv
 });
 
+//////////////////////////
+// Running the bot, listening for messages
+//////////////////////////
 client.on("message", (message) => {
     if (message.content.startsWith("!")) {
         var args = message.content.substring(1).split(' ');
@@ -100,156 +111,164 @@ client.on("message", (message) => {
 			case "qvote":
 				createVotingMessage(message);
 				break;
-			case "qreactions":
-				getMessageReactions(message);
-				break;
         }
     }
 	if(message.author.username == "Vyqe" || message.author.username == "Pasza" ){
 		console.log("Not giving an apple to "+message.author.username);
-		//message.react(pasteEmoji());
 	}
 });
 
-
-////////////////////////// SIMPLE STUFF ///////////////////////////////////////////
+///////////////////////////////////////////
+////////////////////////// SIMPLE STUFF 
+///////////////////////////////////////////
 function sayHello(message){
-	message.channel.send("", { files: ["/home/pi/qBot/hello.png"]});
+	message.channel.send("", { files: ["/home/pi/qBot/hello.png"]}); //pastes hello image
 }
 
 function showSteamHelp(channel){
-	client.channels.cache.get(channel).send("", { files: ["/home/pi/qBot/steamhelp.png"]});
+	client.channels.cache.get(channel).send("", { files: ["/home/pi/qBot/steamhelp.png"]}); //pastes Steam account help image
 }
 
 function pasteEmoji(){
-	//return client.emojis.cache.get("892713333420089354");
-	return '<:SSSstar:597057563770748928>'
+	return '<:SSSstar:597057563770748928>' // Generic - return server-specific emoji
 }
-////////////////////////// TWITCH STUFF //////////////////////////
-function showTwitchImage(message){
-        console.log("Started showTwitchImage()");
+
+///////////////////////////////////////////
+////////////////////////// TWITCH STUFF
+///////////////////////////////////////////
+function showTwitchImage(message){ // Take entire message info as argument
+        console.log(ReturnDate()+" [INFO] Started showTwitchImage()");
         const { exec } = require('child_process');
-        exec('python3 /home/pi/twitchinfo/getInfo.py', (err, stdout, stderr) => {
+        exec('python3 /home/pi/twitchinfo/getInfo.py', (err, stdout, stderr) => { //Run python script
                 if (err) {
-                        console.error(err);
-                        message.channel.send("Error generating Twitch image.");
+                        console.log(ReturnDate()+" [ERROR] Error generatic Twitch image.");
+                        message.channel.send("Error generating Twitch image."); //Send response to message's channel in case of error
                 } else {
-                        console.log("Launched Twitch getInfo.py successfully");
-                        message.channel.send("", { files: ["/home/pi/twitchinfo/twitchInfo.png"]});
-//                        message.channel.send(buildTable(`${stdout}`, 4, 26));
+                        console.log(ReturnDate()+" [INFO] Launched Twitch getInfo.py successfully.");
+                        message.channel.send("", { files: ["/home/pi/twitchinfo/twitchInfo.png"]}); //If successful, paste Twitch image on the same channel as message
                 }
         });
 }
 
-function addTwitchUser(input, message){
-        console.log("Started showTwitchImage()");
+
+function addTwitchUser(input, message){ //Take message and its first argument
+        console.log(ReleaseDate()+" [INFO] Started showTwitchImage()");
         const { exec } = require('child_process');
-        exec('/home/pi/twitchinfo/addTwitch.sh '+input, (err, stdout, stderr) => {
+        exec('/home/pi/twitchinfo/addTwitch.sh '+input, (err, stdout, stderr) => { //Run Python script with the taken argument
                 if (err) {
-                        console.error(err);
-                        message.channel.send("Error adding a new Twitch user - it might already exist.");
+                        console.log(ReturnDate()+" [ERROR] Error adding a new twitch user, it might already exist - argument: "+input); // Error
+                        message.channel.send("Error adding a new Twitch user - it might already exist."); 
                 } else {
-                        console.log("Added new twitch user - "+input);
+                        console.log(ReturnDate()+" [INFO] Added new twitch user - "+input); // Adding successful
 			message.channel.send("Added a new Twitch user: "+input);
                 }
         });
 
 }
 
-function removeTwitchUser(input, message){
-        console.log("Started remove Twitch User()");
+function removeTwitchUser(input, message){ //Taken message and its first argument
+        console.log(ReturnDate()+" [INFO] Started remove Twitch User()");
         const { exec } = require('child_process');
         exec('/home/pi/twitchinfo/removeTwitch.sh '+input, (err, stdout, stderr) => {
                 if (err) {
-                        console.error(err);
+                        console.log(ReturnDate()+" [ERROR] Error removing a twitch user - "+input); // Error
                         message.channel.send("Error removing a new Twitch user - it might not exist.");
                 } else {
-                        console.log("Removed Twitch user - "+input);
+                        console.log(ReturnDate()+" [INFO] Removed Twitch user - "+input); //Success
                         message.channel.send("Removed a Twitch user: "+input);
                 }
         });
 
 }
 
+///////////////////////////////////////////
+////////////////////////// GAME PRICE STUFF
+///////////////////////////////////////////
 
-////////////////////////// GAME PRICE STUFF //////////////////////////
-
-function getGamePrice(args, message){
+function getGamePrice(args, message){ //take all arguments and the message
         console.log("Started getGamePrice()");
         const { exec } = require('child_process');
-        exec('python3 /home/pi/gameprice/getPrice.py "'+args+'"', (err, stdout, stderr) => {
+        exec('python3 /home/pi/gameprice/getPrice.py "'+args+'"', (err, stdout, stderr) => { //Put all arguments within ' ' and run Python script with it
                 if (err) {
-                        console.error(err);
-                        message.channel.send("Error checking price.");
+                        console.log(ReturnDate()+" [ERROR] Error checking price for args: "+args)
+                        message.channel.send("Error checking price.");  //Inform about the error in a message
                 } else {
-                        console.log("Checking price - "+args);
+                        console.log(ReturnDate()+" [INFO] Checking price - "+args);
                         content = stdout.split("\n");
-			message.channel.send(content, { files: ["/home/pi/gameprice/price.png"]});
-			//if (content.at(-2).includes('akamai') || content.at(-2).includes('img.gg')) {
-			//	message.channel.send(content.slice(0, -2), { files: [ content.at(-2) ]});
-			//}
-			//else{
-			//	message.channel.send(content);	
-			//}
-                }
+						message.channel.send(content, { files: ["/home/pi/gameprice/price.png"]}); //Paste image with price if PYthon script was successful
+            }
         });
 
 }
-
-////////////////////////// SCHEDULED CRON JOBS //////////////////////////
+///////////////////////////////////////////
+////////////////////////// SCHEDULED CRON JOBS
+///////////////////////////////////////////
 function enableCronJobs(){
-	console.log("Enabling Cron Jobs");
+	console.log(ReturnDate()+" [INFO] Enabling Cron Jobs");
+	// Every thursday at 17:00 and 30 seconds
 	cron.schedule("30 00 17 * * 4", function(){
 		console.log("Run schedule - show releases...");
+		// fresh releases
 		showReleasesImageToChannel("787465529984155658","new");//890640686947381258","new");
+		// upcoming releases
 		showReleasesImageToChannel("787465529984155658","month");//890640686947381258","month");
 	});
 	
 }
 
-////////////////////////// SLAV MOST PLAYED GAMES 1 //////////////////////////
+///////////////////////////////////////////
+////////////////////////// SLAV MOST PLAYED GAMES 1
+///////////////////////////////////////////
 
+// Show SlavTop - most played games
 function getSlavTopImage(message){
-	message.channel.send("", { files: ["/home/pi/steamsumup/latest-slav-top.png"]});
+	console.log(ReturnDate()+" [INFO] Get SLAV TOP image");
+	message.channel.send("", { files: ["/home/pi/steamsumup/latest-slav-top.png"]}); // Sends an image with most played games
+	// .... and sends a text info regarding how to add your account to calculations:
 	message.channel.send(pasteEmoji()+" This list sums up gametimes for all willing participants "+pasteEmoji()+"\n"+pasteEmoji()+" To add yourself to the Slav list just type \!addsteam YOUR_STEAM_PROFILE_URL, ex. !addsteam <https://steamcommunity.com/id/vyqe> "+pasteEmoji()+"\n"+pasteEmoji()+" Current Slav list can be viewed by typing !showslavs "+pasteEmoji());
 }
 
+//Show Slavs - list of participants
 function showSlavsImage(message){
-        console.log("Started showSlavsImage()");
+        console.log(ReturnDate()+" [INFO] Started showSlavsImage()");
         const { exec } = require('child_process');
-        exec('python3 /home/pi/steamsumup/generateImageProfiles.py', (err, stdout, stderr) => {
+        exec('python3 /home/pi/steamsumup/generateImageProfiles.py', (err, stdout, stderr) => { //Run Python script
                 if (err) {
-                        console.error(err);
-                        message.channel.send("Error generating profiles image.");
+                        console.log(ReturnDate()+" [ERROR] Error generating SlavTop participants image.");
+                        message.channel.send("Error generating profiles image."); // Inform about error
                 } else {
-                        console.log("Launched showTop.py");
-			message.channel.send("", { files: ["/home/pi/steamsumup/current-slavs.png"]});
-//                        message.channel.send(buildTable(`${stdout}`, 4, 26));
+                        console.log(ReturnDate()+" [INFO] Launched showTop.py");
+						message.channel.send("", { files: ["/home/pi/steamsumup/current-slavs.png"]}); //Success = paste image
                 }
         });
-//	message.channel.send("", { files: ["/home/pi/steamsumup/current-slavs.png"]});
 }
 
-////////////////////////// ANTHEM //////////////////////////
+///////////////////////////////////////////
+////////////////////////// ANTHEM
+///////////////////////////////////////////
 
 function pasteAnthemImage(message){
 	console.log("Pasting Anthem.");
-	message.channel.send("", { files: ["/home/pi/qBot/sssanthem.png"]});
+	message.channel.send("", { files: ["/home/pi/qBot/sssanthem.png"]}); //Just paste an image
 }
 
-////////////////////////// NEW RELEASES STUFF //////////////////////////
+///////////////////////////////////////////
+////////////////////////// NEW RELEASES STUFF
+///////////////////////////////////////////
 
 function showReleasesImage(message, which){
-	console.log("Showing Releases Image");
-	message.channel.send("", { files: ["/home/pi/newreleases/"+which+"-eng.png"]});
+	console.log(ReturnDate()+" [INFO] Showing Releases Image");
+	message.channel.send("", { files: ["/home/pi/newreleases/"+which+"-eng.png"]}); // Just paste chosen image as a response
 }
 
 function showReleasesImageToChannel(toChannel, which){
-	console.log("Sending newreleases ("+which+" to channel ID: "+toChannel+"...");
-	client.channels.cache.get(toChannel).send("", { files: ["/home/pi/newreleases/"+which+"-eng.png"]});
+	console.log(ReturnDate()+" [INFO] Sending newreleases ("+which+" to channel ID: "+toChannel+"...");
+	client.channels.cache.get(toChannel).send("", { files: ["/home/pi/newreleases/"+which+"-eng.png"]}); // Paste chosen image to channel in the parameter
 }
 
-//////////////////////////  SLAV MOST PLAYED STUFF 2 ////////////////////////// 
+///////////////////////////////////////////
+//////////////////////////  SLAV MOST PLAYED STUFF 2
+/////////////////////////////////////////// 
 function showProfileList(message){
 	const { exec } = require('child_process');
 	exec('/home/pi/steamsumup/showList.sh', (err, stdout, stderr) => {
@@ -275,7 +294,6 @@ function showTotalTimes(message){
 			message.channel.send(pasteEmoji()+" This list sums up gametimes for all willing participants "+pasteEmoji()+"\n"+pasteEmoji()+" To add yourself to the Slav list just type \!addsteam YOUR_STEAM_PROFILE_URL, ex. !addsteam <https://steamcommunity.com/id/vyqe> "+pasteEmoji()+"\n"+pasteEmoji()+" Current Slav list can be viewed by typing !showslavs "+pasteEmoji());
 		}
 	});
-	//message.channel.send("show total times");
 }
 
 function updateTotalTimes(message){
@@ -293,7 +311,6 @@ function updateTotalTimes(message){
 }
 
 function runAddSteam(input, message){
-	//console.log("input: "+input);
 	input = input.replace("http://","");
 	input = input.replace("https://","");
 	input = input.replace(";","");
@@ -303,24 +320,19 @@ function runAddSteam(input, message){
 	input = input.replace("\\","");
 	input = input.replace(" ","");
 	input = input.split("/");
-	//console.log("input cleaned:"+input);
 	const { exec } = require('child_process');
 	exec('/home/pi/qBot/addsteam.sh '+input+" "+auth.dbuser+" "+auth.dbpass, (err, stdout, stderr) => {
 		if (err) {
-			//some err occurred
 			console.error(err);
 			message.channel.send("Error adding ID");
 		} else {
-			// the *entire* stdout and stderr (buffered)
 			console.log(`stdout: ${stdout}`);
-			//reply = message.channel.send(`${stdout}`);
 			message.channel.send(pasteEmoji()+" Steam ID has been added or had already existed. Total times should be updated within a few minutes. "+pasteEmoji());
 		}
 	});
 }
 
 function getSteamId(input, message){
-
 	console.log("input: "+input);
 	input = input.replace("http://","");
 	input = input.replace("https://","");
@@ -408,14 +420,18 @@ function addSteamIdToProfileList(steamid, message){
 		});
 	
 }
-//////////////////////////  POTATO ////////////////////////// 
+///////////////////////////////////////////
+//////////////////////////  POTATO 
+///////////////////////////////////////////
 function sendPotato(message){
 	random = Math.floor(Math.random() * 5) + 1;
-	console.log("Wysylam ziemniak");
+	console.log(ReturnDate()+" [INFO] Sending a potato.");
 	message.channel.send("", { files: ["/home/pi/ziemniaki/ziemniak" + random + ".png"]});
 }
 
-////////////////////////// GAME RELEASES STUFF ////////////////////////// 
+///////////////////////////////////////////
+////////////////////////// GAME RELEASES STUFF
+///////////////////////////////////////////
 
 function getReleases(message, which) {
     var fs = require('fs');
@@ -448,35 +464,64 @@ function pasteDivider(length) {
 }
 ////////////////////////// VOTE TOOL //////////////////////////
 
+function ReturnDate(){
+	d = new Date();
+	year = d.getFullYear();
+	month = d.getMonth() + 1;
+	if(month < 10){
+		month = "0" + month;
+	}
+	day = d.getDate();
+	if(day < 10){
+		day = "0" + day;
+	}
+	hours = d.getHours();
+	if(hours < 10){
+		hours ="0" + hours;
+	}
+	minutes = d.getMinutes();
+	if(minutes < 10){
+		minutes = "0" + minutes;
+	}
+	seconds = d.getSeconds();
+	if(seconds < 10){
+		seconds = "0" + seconds;
+	}
+	return "["+year+"-"+month+"-"+day+" "+hours+":"+minutes+":"+seconds+"]";
+}
+
 function createVotingMessage(message){
-	votingEntry = message.guild.channels.cache.find(ch => ch.name === 'votings').send(message.content.substr(7)).then(sent => {
-	//votingEntry = message.channel.send(message.content.substr(7)).then(sent => { // 'sent' is that message you just sent
-		let id = sent.id;
-		console.log(id);
-		//client.channels.cache.get("890362452833873924").messages.fetch(id).react("👍");
-		const channel = message.guild.channels.cache.find(ch => ch.name === 'votings');
-        channel.messages.fetch(id).then(rrmsg => {
-			rrmsg.react("♻️"); 	
-			rrmsg.react("1️⃣");
-			rrmsg.react("2️⃣");
-			rrmsg.react("3️⃣");
-			rrmsg.react("4️⃣");
-			rrmsg.react("5️⃣");
-			const { exec } = require('child_process');
-			exec('python3 /home/pi/qBot/votes/addVotePost.py '+id+'', (err, stdout, stderr) => {
-				if (err) { console.error(err); }
-				else {
-					console.log("Added vote post: "+id);
-				}
-			});
-		}); 
-	  });
-	console.log("Voting entry created.");
+	if(message.author.id == "300339016312553473" || message.author.id == "472290226707103774"){ //paszq or vyqe
+		votingEntry = message.guild.channels.cache.find(ch => ch.name === '⭐-toplist-shite').send(message.content.substr(7)).then(sent => {
+			//votingEntry = message.channel.send(message.content.substr(7)).then(sent => { // 'sent' is that message you just sent
+			let id = sent.id;
+			console.log(id);
+			//client.channels.cache.get("890362452833873924").messages.fetch(id).react("👍");
+			const channel = message.guild.channels.cache.find(ch => ch.name === '⭐-toplist-shite'); //voting channel name
+		        channel.messages.fetch(id).then(rrmsg => {
+				rrmsg.react("♻️"); 	
+				rrmsg.react("1️⃣");
+				rrmsg.react("2️⃣");
+				rrmsg.react("3️⃣");
+				rrmsg.react("4️⃣");
+				rrmsg.react("5️⃣");
+				const { exec } = require('child_process');
+				exec('python3 /home/pi/qBot/votes/addVotePost.py '+id+'', (err, stdout, stderr) => {
+					if (err) { console.log(ReturnDate()+"[ERROR] [CreateVote] id: "+id); }
+					else {
+						console.log(ReturnDate()+"[INFO] [CreateVote] Added vote post: "+id);
+					}
+				});
+			}); 
+		});
+		console.log(ReturnDate()+ "[INFO] [CreateVote] Voting entry created.");
+	}
 }
 
 function getMessageReactions(message){
 	//channelID = "890362452833873924";
-	channelID = "926880936497414144";
+	//channelID = "926880936497414144";
+	channelID = "926975700517417011";
 	messageID = "921783763678167110";
 	emoji = ("3️⃣");
 	console.log("GetMessageReactions 0");
@@ -489,7 +534,7 @@ function getMessageReactions(message){
 			console.log("GetMessageReactions 3 MESSAGE");
 			console.log(reactionMessage.content);
 			contentText = reactionMessage.content;
-			emojis = [ "1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣" ];
+			emojis = [ "♻️", "1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣" ];
 			//for(i = 0; i < emojis.length; i++){
 			/*	
 			console.log(" - "+emojis);
@@ -501,6 +546,22 @@ function getMessageReactions(message){
 			console.log("----");
 			console.log(reactionMessage.reactions.ReactionUserManager);
 			*/
+			reactionMessage.reactions.resolve("♻️").users.fetch().then(userList => {
+				userList.forEach(element => {
+					if(element.id != "890360407695425536"){
+						console.log("♻️ - "+element.id);
+						const { exec } = require('child_process');
+						exec('python3 /home/pi/qBot/votes/addReaction.py R '+element.id+' "'+reactionMessage.content+'"', (err, stdout, stderr) => {
+							if (err) { console.error(err); }
+							else {
+								console.log("Added reaction R");
+							}
+						});
+						reactionMessage.reactions.resolve("♻️").users.remove(element.id);
+					}
+				})
+			});
+
 			reactionMessage.reactions.resolve("1️⃣").users.fetch().then(userList => {
 				//console.log("GetMessageReactions 4");
 				userList.forEach(element => {
@@ -594,14 +655,14 @@ function getMessageReactions(message){
 ////////////////////
 
 function loadVotePosts(){
-	console.log("[INFO] [LoadVote] Loading vote posts...");
+	console.log(ReturnDate()+" [INFO] [LoadVote] Loading vote posts...");
 	var fs = require('fs');
 	var array = fs.readFileSync('/home/pi/qBot/votes/voteposts.csv').toString().split("\n");
-	const channel = client.channels.cache.get("926880936497414144");
-	//console.log(array);
+	const channel = client.channels.cache.get("926975700517417011"); //Toplist Shite channel, TestServer: 926880936497414144");
 	
 	for(i in array) {
 		if(array[i] != ''){
+			channel.messages.fetch(array[i]).then(message => message.react("♻️"));
 			channel.messages.fetch(array[i]).then(message => message.react("1️⃣"));
 			channel.messages.fetch(array[i]).then(message => message.react("2️⃣"));
 			channel.messages.fetch(array[i]).then(message => message.react("3️⃣"));
@@ -612,101 +673,94 @@ function loadVotePosts(){
 	for(i in array) {		
 		if(array[i] != ''){
 			channel.messages.fetch(array[i])
-			.then(message => { console.log(""+
+			.then(message => {
+				message.reactions.resolve("♻️").users.fetch().then(userList => {
+					userList.forEach(element => {
+						if(element.id != "890360407695425536"){
+							console.log(ReturnDate()+" [INFO] [LoadVote] i: "+i+" | Found reaction 'R' from user ID: "+element.id+" for "+message.content+" - removing.");
+							message.reactions.resolve("♻️").users.remove(element);
+							saveVote(element.id,message.content, 'R');
+						}
+					});
+				});
+
 				message.reactions.resolve("1️⃣").users.fetch().then(userList => {
 				userList.forEach(element => {
 					if(element.id != "890360407695425536"){
-						console.log("[INFO] [LoadVote] i: "+i+" | Found reaction '1' from user ID: "+element.id+" for "+message.content+" - removing.");
+						console.log(ReturnDate()+" [INFO] [LoadVote] i: "+i+" | Found reaction '1' from user ID: "+element.id+" for "+message.content+" - removing.");
 						message.reactions.resolve("1️⃣").users.remove(element);
 						saveVote(element.id, message.content, '1');
 					}
 				});
-				})
-				+" -> "+
+				});
+				
 				message.reactions.resolve("2️⃣").users.fetch().then(userList => {
 				userList.forEach(element => {
 					if(element.id != "890360407695425536"){
-						console.log("[INFO] [LoadVote] Found reaction '2' from user ID: "+element.id+" for "+message.content+" - removing.");
+						console.log(ReturnDate()+" [INFO] [LoadVote] Found reaction '2' from user ID: "+element.id+" for "+message.content+" - removing.");
 						message.reactions.resolve("2️⃣").users.remove(element);
 						saveVote(element.id, message.content, '2');
 					}
 				});
-				})
-				+" "
-				+" -> "+
+				});
+				
                                 message.reactions.resolve("3️⃣").users.fetch().then(userList => {
                                 userList.forEach(element => {
                                         if(element.id != "890360407695425536"){
-                                                console.log("[INFO] [LoadVote] Found reaction '3' from user ID: "+element.id+" for "+message.content+" - removing.");
+                                                console.log(ReturnDate()+" [INFO] [LoadVote] Found reaction '3' from user ID: "+element.id+" for "+message.content+" - removing.");
                                                 message.reactions.resolve("3️⃣").users.remove(element);
                                                 saveVote(element.id, message.content, '3');
                                         }
                                 });
-                                })
-                                +" "
-				+" -> "+
+                                });
+				
                                 message.reactions.resolve("4️⃣").users.fetch().then(userList => {
                                 userList.forEach(element => {
                                         if(element.id != "890360407695425536"){
-                                                console.log("[INFO] [LoadVote] Found reaction '4' from user ID: "+element.id+" for "+message.content+" - removing.");
+                                                console.log(ReturnDate()+" [INFO] [LoadVote] Found reaction '4' from user ID: "+element.id+" for "+message.content+" - removing.");
                                                 message.reactions.resolve("4️⃣").users.remove(element);
                                                 saveVote(element.id, message.content, '4');
                                         }
                                 });
-                                })
-                                +" "
-				+" -> "+
+                                });
+				
                                 message.reactions.resolve("5️⃣").users.fetch().then(userList => {
                                 userList.forEach(element => {
                                         if(element.id != "890360407695425536"){
-                                                console.log("[INFO] [LoadVote] Found reaction '5' from user ID: "+element.id+" for "+message.content+" - removing.");
+                                                console.log(ReturnDate()+" [INFO] [LoadVote] Found reaction '5' from user ID: "+element.id+" for "+message.content+" - removing.");
                                                 message.reactions.resolve("5️⃣").users.remove(element);
                                                 saveVote(element.id, message.content, '5');
                                         }
                                 });
-                                })
-                                +" "
-			)})
+                                });
+			})
 			.catch(i+" -> "+array[i]+" -> [ERROR] Message not found.");
 		}
-		//client.channels.cache.get("890362452833873924").message.cache.get(array[i]);
-		//const msg = channel.messages.cache.get(""+array[i]);
-		//console.log(msg);
 	}
 }
 
 function saveVote(userId, entryName, vote){
 	if(userId == 890360407695425536){
-		console.log("[INFO] [SaveVote] Bot entry ignored.");
+		console.log(ReturnDate()+" [INFO] [SaveVote] Bot entry ignored.");
 		return true;
 	}
 	const { exec } = require('child_process');
 	exec('python3 /home/pi/qBot/votes/addReaction.py '+vote+' '+userId+' "'+entryName+'"', (err, stdout, stderr) => {
 		if (err) {
-			console.log("[ERROR] [SaveVote] Vote "+vote+" | userID: "+userId+" | entryName "+entryName);
+			console.log(ReturnDate()+" [ERROR] [SaveVote] Vote "+vote+" | userID: "+userId+" | entryName "+entryName);
 		}
 		else {
-			console.log("[INFO] [SaveVote] Added reaction "+vote+" for user "+userId+" for entry: "+entryName);
+			console.log(ReturnDate()+" [INFO] [SaveVote] Added reaction "+vote+" for user "+userId+" for entry: "+entryName);
 		}
 	});
 }
 
 client.on('messageReactionAdd', (reaction, user) => {
-	//console.log(user);
-	//console.log(reaction);
-	console.log('[INFO] [Reaction add] UserID: '+user.id+" | Message: "+reaction.message.content+" | MsgID: "+reaction.message.id+" | EmojiName: "+reaction.emoji.name);
-	//console.log('MESSAGE: '+reaction.message.content)
-	//console.log('MSG ID:  '+reaction.message.id)
-	//console.log('REACTION:'+reaction.emoji.name)
-	//console.log('---')
+	console.log(ReturnDate()+' [INFO] [Reaction add] UserID: '+user.id+" | Message: "+reaction.message.content+" | MsgID: "+reaction.message.id+" | EmojiName: "+reaction.emoji.name);
 	const { exec } = require('child_process');
-	//console.log('Checking if post '+reaction.message.id+' is a valid votepost, running:');
-	//console.log('python3 /home/pi/qBot/votes/checkVotePosts.py '+reaction.message.id+'\n');
 	exec('python3 /home/pi/qBot/votes/checkVotePosts.py '+reaction.message.id+'', (err, stdout, stderr) => {
-		//console.log("ERR CODE: "+err);
-		//console.log("STDOUT: "+stdout);
 		if (!stdout.includes("Found")){
-			console.log("[INFO] [Reaction add] MsgID: "+reaction.message.id+" | Wrong message, ignoring.");
+			console.log(ReturnDate()+"[INFO] [Reaction add] MsgID: "+reaction.message.id+" | Wrong message, ignoring.");
 			return null;
 		}
 		if (user.id == "890360407695425536") return null;
@@ -714,28 +768,22 @@ client.on('messageReactionAdd', (reaction, user) => {
 		case "1️⃣":
 			saveVote(user.id, reaction.message.content, 1);
 			reaction.message.reactions.resolve("1️⃣").users.remove(user);
-			//reaction.message.reply("you reacted with 1️⃣");
 			break;
 		case "2️⃣":
 			saveVote(user.id, reaction.message.content, 2);
 			reaction.message.reactions.resolve("2️⃣").users.remove(user);
-			//reaction.remove(user);
-			//reaction.message.reply("you reacted with 2️⃣");
 			break;
 		case "3️⃣":
 			saveVote(user.id, reaction.message.content, 3);
 			reaction.message.reactions.resolve("3️⃣").users.remove(user);
-			//reaction.message.reply("you reacted with 3️⃣");
 			break;
 		case "4️⃣":
 			saveVote(user.id, reaction.message.content, 4);
 			reaction.message.reactions.resolve("4️⃣").users.remove(user);
-			//reaction.message.reply("you reacted with 3️⃣");
 			break;
 		case "5️⃣":
 			saveVote(user.id, reaction.message.content, 5);
 			reaction.message.reactions.resolve("5️⃣").users.remove(user);
-			//reaction.message.reply("you reacted with 3️⃣");
 			break;
 		default:
 			// in case you want to log when they don't reply with the correct emoji.
@@ -745,12 +793,13 @@ client.on('messageReactionAdd', (reaction, user) => {
 });
 
 
+///////////////////////////////////////////
+////////////////////////// TABLE BUILDER GENERIC
+///////////////////////////////////////////
 
-////////////////////////// TABLE BUILDER GENERIC ////////////////////////// 
-
+// It takes input array and sends a message with a formatted table.
+// Old solution, for text-based responses. Bot is using image generation now mostly.
 function buildTable(inputArray, maxWidth, maxRows) {
-	//console.log("LEN:"+inputArray.length);
-	//console.log("ARRAY:\n"+inputArray);
 	inputArray = inputArray+"";
 	inputArray = inputArray.split("\n");
 	inputArray = inputArray.slice(0, -1);
@@ -805,6 +854,7 @@ function buildTable(inputArray, maxWidth, maxRows) {
     return finalString;
 }
 
-//////////////////////////  LOGIN ////////////////////////// 
-
+///////////////////////////////////////////
+//////////////////////////  LOGIN 
+///////////////////////////////////////////
 client.login(auth.token);
