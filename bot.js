@@ -111,6 +111,9 @@ client.on("message", (message) => {
 			case "qvote":
 				createVotingMessage(message);
 				break;
+			case "qresults":
+				showVotingResultsToChannel("787465529984155658");
+				break;
         }
     }
 	if(message.author.username == "Vyqe" || message.author.username == "Pasza" ){
@@ -266,6 +269,13 @@ function showReleasesImageToChannel(toChannel, which){
 	client.channels.cache.get(toChannel).send("", { files: ["/home/pi/newreleases/"+which+"-eng.png"]}); // Paste chosen image to channel in the parameter
 }
 
+///////////////////////////////////////////
+////////////////////// SHOW SLAV TOP GAME VOTING RESULTS IMAGE
+/////////////////////////////////////////
+function showVotingResultsToChannel(toChannel){
+	console.log(ReturnDate()+" [INFO] Showing voting results image to channel ID: "+toChannel+"...");
+	client.channels.cache.get(toChannel).send("", { files: ["/home/pi/qBot/votes/ranking.png"]}); //Paste ranking image to channel in the parameter
+}
 ///////////////////////////////////////////
 //////////////////////////  SLAV MOST PLAYED STUFF 2
 /////////////////////////////////////////// 
