@@ -114,10 +114,17 @@ client.on("message", (message) => {
 			case "qresults":
 				showVotingResultsToChannel("787465529984155658");
 				break;
+			case "activity":
+				showActivity();
+				break;
+			case "membercount":
+				saveMemberCount();
+				break;
         }
     }
 	if(message.author.username == "Vyqe" || message.author.username == "Pasza" ){
-		console.log("Not giving an apple to "+message.author.username);
+		//console.log("Not giving an apple to "+message.author.username);
+		
 	}
 });
 
@@ -134,6 +141,122 @@ function showSteamHelp(channel){
 
 function pasteEmoji(){
 	return '<:SSSstar:597057563770748928>' // Generic - return server-specific emoji
+}
+
+///////////////////////////////////////////
+/////////////////////// ACTIVITY / IN-GAME STATUS / PLAYING?
+/////////////////////////////////////////
+function saveMemberCount(){
+	console.log(ReturnDate()+" [INFO] Running member count...");
+	const guild = client.guilds.cache.get("493082193938350080");
+	var withBots = guild.memberCount;
+	var userCount = 0;
+	var iterations = 0;
+	guild.members.fetch().then(members =>
+		{	
+			members.forEach(member =>
+			{
+				iterations++;
+				if(member.user.bot){
+					return;
+				}
+				userCount +=1 ;
+				console.log(ReturnDate()+" [DEBUG] Iterations: "+iterations+" / "+withBots);
+				if(iterations == withBots){
+					writeMemberCountToDB(userCount, withBots);
+				}
+			});
+		});
+	//console.log(ReturnDate()+" [INFO] Member count: "+userCount+"; with bots: "+withBots);
+	//const { exec } = require('child_process');
+	//exec('python3 /home/pi/qBot/membercount/save.py '+userCount+' '+withBots, (err, stdout, stderr) => {
+//		if (err) { console.error(err); }
+//		else{
+//			console.log(ReturnDate()+" [INFO] Saved to file - Member count: "+userCount+"; with bots: "+withBots);
+//		}
+//	});
+}
+
+function writeMemberCountToDB(userCount, withBots){
+	console.log(ReturnDate()+" [INFO] Member count: "+userCount+"; with bots: "+withBots);
+        const { exec } = require('child_process');
+        exec('python3 /home/pi/qBot/membercount/save.py '+userCount+' '+withBots, (err, stdout, stderr) => {
+                if (err) { console.error(err); }
+                else{
+                        console.log(ReturnDate()+" [INFO] Saved to file - Member count: "+userCount+"; with bots: "+withBots);
+                }
+        });
+}
+
+function showActivity(){
+	//message.channel.send("Count with bots: "+message.guild.memberCount);
+	//console.log("MEMBERS:");
+//	members = message.guild.members.fetch();
+	// Get server
+	const guild = client.guilds.cache.get("493082193938350080");
+	console.log(guild);
+	// Fetch and get the list named 'members'
+	guild.members.fetch().then(members =>
+	{
+	  	// Loop through members
+		userCount = 0;
+		members.forEach(member =>
+	    	{
+			if(member.user.bot){
+				return;
+			}
+			userCount += 1;
+			activityString = Date.now()+";"+member.user.username+";"+member.user.id+";"+member.user.bot+";"+member.user.presence.status.replace(";"," ")+";";
+			isActive = false;
+			var found = false;
+			for(var j = 0; j < member.presence.activities.length;j++){
+				if(member.presence.activities[j].type == 'PLAYING'){
+					//console.log("Debug activity: "+member.presence.activities[j].type+" = "+member.presence.activities[j].name+" = "+member.presence.activities[j].details+" = "+member.presence.activities[j].state+" === "+member.presence.activities[j].applicationID);
+					foundGame = member.presence.activities[j].name+"";
+					found = true;
+					isActive = true;
+				}
+			}
+			if(!found){
+				activityString += "NONE;";
+			}
+			else{ 
+				activityString += foundGame+";";
+			}
+			found = false;
+			for(j = 0; j < member.presence.activities.length;j++){
+				if(member.presence.activities[j].type == "LISTENING"){
+					activityString += "music;";
+					found = true;
+					isActive = true;
+				}
+			}
+			if(!found) activityString += "NONE;";
+			found = false;
+			for(j = 0; j < member.presence.activities.length;j++){
+				if(member.presence.activities[j].type == "STREAMING"){
+					activityString += "stream;";
+					found = true;
+					isActive = true;
+				}
+			}
+			if(!found) activityString += "NONE;";
+			console.log(isActive+";"+activityString);
+			//Run python file to save info if user is active
+			if(isActive){
+				const { exec } = require('child_process');
+				activityStringCopy = activityString;
+				exec('python3 /home/pi/qBot/activity/addActivity.py "'+activityString+'"', (err, stdout, stderr) => {
+					if (err) { console.error(err); }
+					else {
+						console.log(ReturnDate()+" [INFO] Added activity: "+activityStringCopy);
+					}
+				});
+				//message.channel.send(activityString);
+			}
+		});
+		//message.channel.send("User count: "+userCount);
+	});
 }
 
 ///////////////////////////////////////////
@@ -210,13 +333,20 @@ function enableCronJobs(){
 	console.log(ReturnDate()+" [INFO] Enabling Cron Jobs");
 	// Every thursday at 17:00 and 30 seconds
 	cron.schedule("30 00 17 * * 4", function(){
-		console.log("Run schedule - show releases...");
+		console.log(ReturnDate()+" [INFO] Run schedule - show releases...");
 		// fresh releases
 		showReleasesImageToChannel("787465529984155658","new");//890640686947381258","new");
 		// upcoming releases
 		showReleasesImageToChannel("787465529984155658","month");//890640686947381258","month");
 	});
-	
+	cron.schedule("0 */5 * * * *", function(){
+		console.log(ReturnDate()+" [INFO] Run schedule - log Discord activity");
+		showActivity();
+	});
+	cron.schedule("0 38 20 * * *", function(){
+		console.log(ReturnDate()+" [INFO] Run schedule - log Discord member count");
+		saveMemberCount();
+	});
 }
 
 ///////////////////////////////////////////

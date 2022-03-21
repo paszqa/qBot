@@ -6,6 +6,7 @@ input=$1
 dbuser=$2
 dbpass=$3
 
+echo "ARG1: "$1
 mode=$(echo "$1"|awk -F"," '{ print $2 }')
 steamid=$(echo "$1"|awk -F"," '{ print $3 }')
 ####################################
@@ -19,7 +20,7 @@ if [ $mode == "id" ]; then
 	websiteLine=$(cat $steamid.tmp|grep -i "steamID64 (Dec)")
 	steamid64="${websiteLine/steamID64 (Dec)/}"   #REMOVE SOME TEXT WITH NUMBERS
 	steamid64=$(echo $steamid64 | sed 's/[^0-9]*//g')    #REMOVE EVERYTHING EXCEPT NUMBERS
-	echo "[Final SteamID] $steamid64"
+	echo "[Final SteamID] $steamid64"  
 	finalSteamID=$steamid64
 elif [ $mode == "profiles" ]; then
 	echo "[Final SteamID] $steamid"
